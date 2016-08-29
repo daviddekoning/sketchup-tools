@@ -4,15 +4,55 @@ mod = Sketchup.active_model # Open model
 ent = mod.entities # All entities in model
 sel = mod.selection # Current selection
 
+# Extending Sketchup classes to give us the methods and operators to make life easier
 class Sketchup::ComponentInstance
     def local_bounds
         return self.definition.bounds
     end
+    
+    def entities
+        return self.definition.entities
+    end
 end
 
+class Sketchup::Length
+    def + (l)
+        (self.to_f + l .to_f).to_l
+    end
+    def - (l)
+        (self.to_f - l .to_f).to_l
+    end
+end
+
+#utility function to reset the color of the whole model
 def set_white(model=Sketchup.active_model)
     get_members(model).each do |m|
         m.material=( "white")
+    end
+end
+
+class PlywoodSize
+    attr_reader :tag, :count, :colour
+    
+    def initialize(tag, t, tol, c)
+        @tag = tag
+        @thickness = t
+        @tolerance = tol
+        @colour = c
+        @count = 0
+    end
+    
+    def add()
+        @count +=1
+    end
+    
+    def matches?(u,v,w)
+        if (u - @thickness).abs < @tolerance or
+           (v - @thickness).abs < @tolerance or
+           (w - @thickness).abs < @tolerance then
+            return true
+        end
+        return false
     end
 end
 
@@ -28,33 +68,33 @@ class LumberSize
         @count = 0
     end
     
-    def count()
+    def add()
         @count +=1
     end
     
-    def matches?(u, v, w) # dims is an array of three numbers
+    def matches?(u, v, w) # u,v and w are Sketchup::Length
         # check depth, then width
-        if u - @depth <= @tolerance then
-            if v - @width <= @tolerance then
-                return true, w.to_l
-            elsif w - @width <= @tolerance then
-                return true, v.to_l
+        if (u - @depth).abs <= @tolerance then
+            if (v - @width).abs <= @tolerance then
+                return true, w
+            elsif (w - @width).abs <= @tolerance then
+                return true, v
             end
         end
         
-        if v - @depth <= @tolerance then
-            if u - @width <= @tolerance then
-                return true, w.to_l
-            elsif w - @width <= @tolerance then
-                return true, u.to_l
+        if (v - @depth).abs <= @tolerance then
+            if (u - @width).abs <= @tolerance then
+                return true, w
+            elsif (w - @width).abs <= @tolerance then
+                return true, u
             end
         end
         
-        if w - @depth <= @tolerance then
-            if v - @width <= @tolerance then
-                return true, u.to_l
-            elsif u - @width <= @tolerance then
-                return true, v.to_l
+        if (w - @depth).abs <= @tolerance then
+            if (v - @width).abs <= @tolerance then
+                return true, u
+            elsif (u - @width).abs <= @tolerance then
+                return true, v
             end
         end
         
@@ -63,16 +103,24 @@ class LumberSize
     end
 end
 
+class CutMark
+    attr_reader :size, :length, :count
+    
+    def initialize(size, length)
+        @size = size
+        @length = length
+        @count = 0
+    end
+end
+
+# returns a list of all the Groups and ComponentInstances that do not include
+# any sub-groups or sub-components
 def get_members(entity)
 
     members = Array.new
     has_subgroups = false
-    if entity.is_a?(Sketchup::ComponentInstance) then
-         sub_entities = entity.definition.entities
-    else
-         sub_entities = entity.entities
-    end
-    sub_entities.each { |e|
+
+    entity.entities.each { |e|
         if ( e.is_a?(Sketchup::Group) or e.is_a?(Sketchup::ComponentInstance) ) then
             members.concat( get_members( e ) )
             has_subgroups = true
@@ -86,22 +134,27 @@ def get_members(entity)
     return members
 end
 
-sizes = [LumberSize.new("2x2", 1.5, 1.5, 0.1, "pink"), 
-    LumberSize.new("1x4", 0.75,3.5,0.1, "blue"), 
-    LumberSize.new("1x10", 0.75, 9.5, 0.1, "yellow"),
-    LumberSize.new("2x4", 1.5, 3.5, 0.2, "green")]
+sizes = [LumberSize.new("2x2", 1.5.to_l, 1.5.to_l, 0.1.to_l, "pink"), 
+    LumberSize.new("1x4", 0.75.to_l,3.5.to_l,0.1.to_l, "blue"),
+    LumberSize.new("1x2", 0.75.to_l, 1.5.to_l, 0.1.to_l,"purple"),
+    LumberSize.new("1x3", 0.75.to_l, 2.5.to_l, 0.1.to_l,"red"),
+    LumberSize.new("1x10", 0.75.to_l, 9.5.to_l, 0.1.to_l, "yellow"),
+    LumberSize.new("2x3", 1.5.to_l,2.5.to_l,0.1.to_l, "orange"),
+    LumberSize.new("2x4", 1.5.to_l, 3.5.to_l, 0.2.to_l, "gray"),
+    LumberSize.new("2x6", 1.5.to_l, 5.5.to_l, 0.1.to_l, "Brown"),
+    PlywoodSize.new("1/2\" sheet", 0.5.to_l, 0.05.to_l, "green"),
+    PlywoodSize.new("3/4\" sheet", 0.75.to_l, 0.05.to_l, "LightGreen")]
 
 get_members( mod ).each do |m|
+    bbox = m.local_bounds
     sizes.each do |l|
-        bbox = m.local_bounds
-        (matches, length) = l.matches?(bbox.width.to_f, bbox.depth.to_f, bbox.height.to_f)
+        (matches, length) = l.matches?(bbox.width, bbox.depth, bbox.height)
         if matches then
-            puts "#{l.tag}, #{length}"
-            l.count
+            puts "#{l.tag}, #{length.to_f.to_mm.round(0)}, #{m.entityID}"
+            l.add
             m.material=(l.colour)
             break
         end
-        m.material=("white")
     end
  end
 
