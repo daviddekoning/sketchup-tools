@@ -17,17 +17,17 @@ end
 
 class Sketchup::Length
     def + (l)
-        (self.to_f + l .to_f).to_l
+        (self.to_f + l.to_f).to_l
     end
     def - (l)
-        (self.to_f - l .to_f).to_l
+        (self.to_f - l.to_f).to_l
     end
 end
 
 #utility function to reset the color of the whole model
-def set_white(model=Sketchup.active_model)
+def set_colour(model=Sketchup.active_model, colour="white")
     get_members(model).each do |m|
-        m.material=( "white")
+        m.material=(colour)
     end
 end
 
