@@ -23,7 +23,7 @@ end
 module DKS
     # returns a list of all the Groups and ComponentInstances that do not include
     # any sub-groups or sub-components
-    def get_members(entity)
+    def self.get_members(entity)
 
         members = Array.new
         has_subgroups = false
@@ -45,7 +45,7 @@ module DKS
 
 
     #utility function to reset the color of the whole model
-    def set_colour(model=Sketchup.active_model, colour="white")
+    def self.set_colour(model=Sketchup.active_model, colour="white")
         get_members(model).each do |m|
             m.material=(colour)
         end
@@ -144,7 +144,7 @@ module DKS
         PlywoodSize.new("1/2\" sheet", 0.5.to_l, 0.05.to_l, "green"),
         PlywoodSize.new("3/4\" sheet", 0.75.to_l, 0.05.to_l, "LightGreen")]
 
-    def colour_members(mod)
+    def self.colour_members(mod)
         get_members( mod ).each do |m|
             bbox = m.local_bounds
             if m.hidden? then
@@ -167,9 +167,8 @@ module DKS
     
     end
 
-end
 
-include DKS
+end
 
 unless file_loaded?(__FILE__)
     mymenu = UI.menu("Extensions").add_submenu("ddk plugins")
