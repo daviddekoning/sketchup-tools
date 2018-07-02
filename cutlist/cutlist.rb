@@ -1,10 +1,26 @@
 require "Sketchup.rb"
 
-module DKS
-    mod = Sketchup.active_model # Open model
-    ent = mod.entities # All entities in model
-    sel = mod.selection # Current selection
+# Extending Sketchup classes to give us the methods and operators to make life easier
+class Sketchup::ComponentInstance
+    def local_bounds
+        return self.definition.bounds
+    end
 
+    def entities
+        return self.definition.entities
+    end
+end
+
+class Sketchup::Length
+    def + (l)
+        (self.to_f + l.to_f).to_l
+    end
+    def - (l)
+        (self.to_f - l.to_f).to_l
+    end
+end
+
+module DKS
     # returns a list of all the Groups and ComponentInstances that do not include
     # any sub-groups or sub-components
     def get_members(entity)
@@ -23,28 +39,10 @@ module DKS
             members.push( entity )
         end
     
-        return members
+        members
     end
 
-    # Extending Sketchup classes to give us the methods and operators to make life easier
-    class Sketchup::ComponentInstance
-        def local_bounds
-            return self.definition.bounds
-        end
-    
-        def entities
-            return self.definition.entities
-        end
-    end
 
-    class Sketchup::Length
-        def + (l)
-            (self.to_f + l.to_f).to_l
-        end
-        def - (l)
-            (self.to_f - l.to_f).to_l
-        end
-    end
 
     #utility function to reset the color of the whole model
     def set_colour(model=Sketchup.active_model, colour="white")
@@ -135,7 +133,7 @@ module DKS
         end
     end
 
-    sizes = [LumberSize.new("2x2", 1.5.to_l, 1.5.to_l, 0.1.to_l, "pink"), 
+    @@sizes = [LumberSize.new("2x2", 1.5.to_l, 1.5.to_l, 0.1.to_l, "pink"), 
         LumberSize.new("1x4", 0.75.to_l,3.5.to_l,0.1.to_l, "blue"),
         LumberSize.new("1x2", 0.75.to_l, 1.5.to_l, 0.1.to_l,"purple"),
         LumberSize.new("1x3", 0.75.to_l, 2.5.to_l, 0.1.to_l,"red"),
@@ -146,20 +144,35 @@ module DKS
         PlywoodSize.new("1/2\" sheet", 0.5.to_l, 0.05.to_l, "green"),
         PlywoodSize.new("3/4\" sheet", 0.75.to_l, 0.05.to_l, "LightGreen")]
 
-    get_members( mod ).each do |m|
-        bbox = m.local_bounds
-        sizes.each do |l|
-            (matches, length) = l.matches?(bbox.width, bbox.depth, bbox.height)
-            if matches then
-                puts "#{l.tag}, #{length.to_f.to_mm.round(0)}, #{m.entityID}"
-                l.add
-                m.material=(l.colour)
+    def colour_members(mod)
+        get_members( mod ).each do |m|
+            bbox = m.local_bounds
+            if m.hidden? then
                 break
             end
+            @@sizes.each do |l|
+                (matches, length) = l.matches?(bbox.width, bbox.depth, bbox.height)
+                if matches then
+                    puts "#{l.tag}, length: #{length.to_f.to_mm.round(0)}, Sketchup ID: #{m.entityID}"
+                    l.add
+                    m.material=(l.colour)
+                    break
+                end
+            end
         end
-     end
 
-    sizes.each do |l|
-        puts "#{l.tag}: #{l.count}"
+        @@sizes.each do |l|
+            puts "#{l.tag}: #{l.count}"
+        end
+    
     end
+
+end
+
+include DKS
+
+unless file_loaded?(__FILE__)
+    mymenu = UI.menu("Extensions").add_submenu("ddk plugins")
+    mymenu.add_item("colour members") {DKS::colour_members( Sketchup.active_model )}
+    file_loaded(__FILE__)
 end
