@@ -58,22 +58,13 @@ module DKS
     end
 
     class PlywoodSize
-        attr_reader :tag, :count, :colour
+        attr_reader :tag, :colour
     
         def initialize(tag, t, tol, c)
             @tag = tag
             @thickness = t
             @tolerance = tol
             @colour = c
-            @count = 0
-        end
-    
-        def add()
-            @count +=1
-        end
-
-        def reset_count()
-            @count = 0
         end
     
         def matches?(u,v,w)
@@ -87,7 +78,7 @@ module DKS
     end
 
     class LumberSize
-        attr_reader :tag, :count, :colour
+        attr_reader :tag, :colour
 
         def initialize(tag, d, w, tol, c)
             @tag = tag
@@ -95,15 +86,6 @@ module DKS
             @width = w
             @tolerance = tol
             @colour = c
-            @count = 0
-        end
-    
-        def add()
-            @count +=1
-        end
-
-        def reset_count()
-            @count = 0
         end
     
         def matches?(u, v, w) # u,v and w are Sketchup::Length
@@ -143,7 +125,6 @@ module DKS
         def initialize(size, length)
             @size = size
             @length = length
-            @count = 0
         end
     end
 
@@ -160,9 +141,7 @@ module DKS
 
     def self.colour_members(members)
 
-        @@sizes.each do |m|
-            m.reset_count
-        end
+        counts = {}
 
         members.each do |m|
             bbox = m.local_bounds
@@ -171,20 +150,22 @@ module DKS
                 (matches, length) = l.matches?(bbox.width, bbox.depth, bbox.height)
                 if matches then
                     puts "#{l.tag}, length: #{length.to_f.to_mm.round(0)}, Sketchup ID: #{m.entityID}"
-                    l.add
+                    if counts.has_key?(l.tag) then
+                        counts[l.tag] += 1
+                    else
+                        counts[l.tag] = 1
+                    end
                     m.material=(l.colour)
                     break
                 end
             end
         end
 
-        @@sizes.each do |l|
-            puts "#{l.tag}: #{l.count}"
+        counts.each do |key,value|
+            puts "#{key}: #{value}"
         end
     
     end
-
-
 end
 
 unless file_loaded?(__FILE__)
