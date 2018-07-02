@@ -23,19 +23,23 @@ end
 module DKS
     # returns a list of all the Groups and ComponentInstances that do not include
     # any sub-groups or sub-components
-    def self.get_members(entity)
+    def self.get_members(entity,visible_only)
 
         members = Array.new
         has_subgroups = false
 
-        entity.entities.each { |e|
-            if ( e.is_a?(Sketchup::Group) or e.is_a?(Sketchup::ComponentInstance) ) then
-                members.concat( get_members( e ) )
-                has_subgroups = true
-            end
+        entity.entities.select{|e| (e.is_a?(Sketchup::Group) or \
+                               e.is_a?(Sketchup::ComponentInstance)) and \
+                               (e.visible? or !visible_only ) and 
+                               (e.layer.visible? or !visible_only ) \
+                              }.each { |e|
+            members.concat( get_members( e, visible_only ) )
+            has_subgroups = true
         }
 
-        if not has_subgroups then
+        if not has_subgroups and \
+           (entity.visible? or !visible_only) and \
+           (entity.layer.visible? or !visible_only) then
             members.push( entity )
         end
     
@@ -46,7 +50,7 @@ module DKS
 
     #utility function to reset the color of the whole model
     def self.set_colour(model=Sketchup.active_model, colour="white")
-        get_members(model).each do |m|
+        get_members(model,false).each do |m|
             m.material=(colour)
         end
     end
@@ -64,6 +68,10 @@ module DKS
     
         def add()
             @count +=1
+        end
+
+        def reset_count()
+            @count = 0
         end
     
         def matches?(u,v,w)
@@ -90,6 +98,10 @@ module DKS
     
         def add()
             @count +=1
+        end
+
+        def reset_count()
+            @count = 0
         end
     
         def matches?(u, v, w) # u,v and w are Sketchup::Length
@@ -144,12 +156,15 @@ module DKS
         PlywoodSize.new("1/2\" sheet", 0.5.to_l, 0.05.to_l, "green"),
         PlywoodSize.new("3/4\" sheet", 0.75.to_l, 0.05.to_l, "LightGreen")]
 
-    def self.colour_members(mod)
-        get_members( mod ).each do |m|
+    def self.colour_members(mod,visible_only=true)
+
+        @@sizes.each do |m|
+            m.reset_count
+        end
+
+        get_members( mod , visible_only).each do |m|
             bbox = m.local_bounds
-            if m.hidden? then
-                break
-            end
+
             @@sizes.each do |l|
                 (matches, length) = l.matches?(bbox.width, bbox.depth, bbox.height)
                 if matches then
@@ -171,7 +186,9 @@ module DKS
 end
 
 unless file_loaded?(__FILE__)
-    mymenu = UI.menu("Extensions").add_submenu("ddk plugins")
-    mymenu.add_item("colour members") {DKS::colour_members( Sketchup.active_model )}
+    menu = UI.menu("Extensions")
+    menu.add_item("Count and Colour Visible Timber") {DKS::colour_members( Sketchup.active_model, true )}
+    menu.add_item("Count and Colour All Timber") {DKS::colour_members( Sketchup.active_model, false )}
+    menu.add_item("Reset groups to white") {DKS::set_colour(Sketchup.active_model)}
     file_loaded(__FILE__)
 end
