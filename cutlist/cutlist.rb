@@ -46,11 +46,13 @@ module DKS
         members
     end
 
-
+    def self.reset_member_colours(model=Sketchup.active_model, colour="white")
+        set_colour(get_members(model,false),colour)
+    end
 
     #utility function to reset the color of the whole model
-    def self.set_colour(model=Sketchup.active_model, colour="white")
-        get_members(model,false).each do |m|
+    def self.set_colour(entities, colour="white")
+        entities.each do |m|
             m.material=(colour)
         end
     end
@@ -156,13 +158,13 @@ module DKS
         PlywoodSize.new("1/2\" sheet", 0.5.to_l, 0.05.to_l, "green"),
         PlywoodSize.new("3/4\" sheet", 0.75.to_l, 0.05.to_l, "LightGreen")]
 
-    def self.colour_members(mod,visible_only=true)
+    def self.colour_members(members)
 
         @@sizes.each do |m|
             m.reset_count
         end
 
-        get_members( mod , visible_only).each do |m|
+        members.each do |m|
             bbox = m.local_bounds
 
             @@sizes.each do |l|
@@ -187,8 +189,10 @@ end
 
 unless file_loaded?(__FILE__)
     menu = UI.menu("Extensions")
-    menu.add_item("Count and Colour Visible Timber") {DKS::colour_members( Sketchup.active_model, true )}
-    menu.add_item("Count and Colour All Timber") {DKS::colour_members( Sketchup.active_model, false )}
-    menu.add_item("Reset groups to white") {DKS::set_colour(Sketchup.active_model)}
+    menu.add_item("Count and Colour Visible Timber") {DKS::colour_members( DKS::get_members(Sketchup.active_model, true ) )}
+    menu.add_item("Count and Colour All Timber") {DKS::colour_members( DKS::get_members(Sketchup.active_model, false ))}
+    menu.add_item("Count and Colour Selected") {DKS::colour_members( DKS::get_selected_members(Sketchup.active_model, true))}
+    menu.add_item("Reset all groups to white") {DKS::reset_member_colours(Sketchup.active_model)}
+    menu.add_item("Reset selected groups to white") {DKS::set_colour(Sketchup.active_model.selection)}
     file_loaded(__FILE__)
 end
