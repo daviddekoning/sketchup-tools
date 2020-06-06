@@ -68,10 +68,12 @@ module DKS
         end
     
         def matches?(u,v,w)
-            if (u - @thickness).abs < @tolerance or
-               (v - @thickness).abs < @tolerance or
-               (w - @thickness).abs < @tolerance then
-                return true
+            if (u - @thickness).abs < @tolerance then
+                return [true, [v.to_f.to_mm.round(0),w.to_f.to_mm.round(0)].minmax]
+            elsif (v - @thickness).abs < @tolerance then
+                return [true, [u.to_f.to_mm.round(0),w.to_f.to_mm.round(0)].minmax]
+            elsif (w - @thickness).abs < @tolerance then
+                return [true, [u.to_f.to_mm.round(0),v.to_f.to_mm.round(0)].minmax]
             end
             return false
         end
@@ -92,25 +94,25 @@ module DKS
             # check depth, then width
             if (u - @depth).abs <= @tolerance then
                 if (v - @width).abs <= @tolerance then
-                    return true, w
+                    return true, w.to_f.to_mm.round(0)
                 elsif (w - @width).abs <= @tolerance then
-                    return true, v
+                    return true, v.to_f.to_mm.round(0)
                 end
             end
         
             if (v - @depth).abs <= @tolerance then
                 if (u - @width).abs <= @tolerance then
-                    return true, w
+                    return true, w.to_f.to_mm.round(0)
                 elsif (w - @width).abs <= @tolerance then
-                    return true, u
+                    return true, u.to_f.to_mm.round(0)
                 end
             end
         
             if (w - @depth).abs <= @tolerance then
                 if (v - @width).abs <= @tolerance then
-                    return true, u
+                    return true, u.to_f.to_mm.round(0)
                 elsif (u - @width).abs <= @tolerance then
-                    return true, v
+                    return true, v.to_f.to_mm.round(0)
                 end
             end
         
@@ -142,18 +144,23 @@ module DKS
     def self.colour_members(members)
 
         counts = {}
-
+        lengths = {}
         members.each do |m|
             bbox = m.local_bounds
 
             @@sizes.each do |l|
-                (matches, length) = l.matches?(bbox.width, bbox.depth, bbox.height)
+                matches, length = l.matches?(bbox.width, bbox.depth, bbox.height)
                 if matches then
-                    puts "#{l.tag}, length: #{length.to_f.to_mm.round(0)}, Sketchup ID: #{m.entityID}"
+                    puts "#{l.tag}, cut size: #{length}"
                     if counts.has_key?(l.tag) then
                         counts[l.tag] += 1
                     else
                         counts[l.tag] = 1
+                    end
+                    if lengths.has_key?(l.tag) then
+                        lengths[l.tag].push(length)
+                    else
+                        lengths[l.tag] = [length]
                     end
                     m.material=(l.colour)
                     break
@@ -164,7 +171,7 @@ module DKS
         counts.each do |key,value|
             puts "#{key}: #{value}"
         end
-    
+        puts lengths
     end
 end
 
